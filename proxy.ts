@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { readSessionCookie, SESSION_COOKIE } from "@/lib/session";
+import { readSessionCookie, SESSION_COOKIE } from "@/lib/session-core";
 
 /** 낙관적 페이지 보호: 실제 권한 검사는 각 API(requireUser)에서 다시 한다 */
 export async function proxy(req: NextRequest) {

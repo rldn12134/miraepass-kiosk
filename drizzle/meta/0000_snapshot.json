@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f31270a8-1edd-417f-ac47-aeaf940f0f71",
+  "id": "1eb722fa-5b5f-4413-a40a-bb876c484deb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "categories": {
@@ -407,7 +407,7 @@
           "name": "order_no",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "business_date": {

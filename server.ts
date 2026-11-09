@@ -6,7 +6,7 @@ import next from "next";
 import { Server } from "socket.io";
 import { seedIfEmpty } from "./lib/db/seed";
 import { setIO, type IO } from "./lib/realtime";
-import { readSessionCookie, SESSION_COOKIE } from "./lib/session";
+import { readSessionCookie, SESSION_COOKIE } from "./lib/session-core";
 
 const dev = process.env.NODE_ENV !== "production";
 const port = Number(process.env.PORT ?? 3000);

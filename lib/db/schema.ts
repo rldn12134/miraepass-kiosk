@@ -72,7 +72,8 @@ export const orders = sqliteTable(
   "orders",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    orderNo: integer("order_no").notNull(),
+    /** 결제 성공 시 부여하는 일자별 주문번호 (결제 전·실패 주문은 null) */
+    orderNo: integer("order_no"),
     businessDate: text("business_date").notNull(), // YYYY-MM-DD (KST)
     idempotencyKey: text("idempotency_key").notNull(),
     customerType: text("customer_type", { enum: ["student", "teacher"] }).notNull(),

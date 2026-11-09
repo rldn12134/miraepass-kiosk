@@ -26,7 +26,7 @@ const iso = (d: Date | null) => (d ? d.toISOString() : null);
 export function toOrderDTO(o: Order, items: OrderItem[]): OrderDTO {
   return {
     id: o.id,
-    orderNo: o.orderNo,
+    orderNo: o.orderNo ?? 0,
     businessDate: o.businessDate,
     customerType: o.customerType,
     customerId: o.customerId,
@@ -151,7 +151,7 @@ export async function createOrder(input: CreateOrderInput & { customerName?: str
   const existing = db.select().from(schema.orders).where(eq(schema.orders.idempotencyKey, input.idempotencyKey)).get();
   if (existing) {
     if (existing.paymentStatus === "paid" || existing.paymentStatus === "refunded") {
-      return { orderId: existing.id, orderNo: existing.orderNo, total: existing.total, balanceAfter: existing.balanceAfter };
+      return { orderId: existing.id, orderNo: existing.orderNo ?? 0, total: existing.total, balanceAfter: existing.balanceAfter };
     }
     if (existing.status === "failed") throw failureFromStored(existing);
     throw new ApiError("PAYMENT_UNAVAILABLE", "결제를 처리하고 있어요. 잠시만 기다려 주세요", 409);
@@ -184,15 +184,9 @@ export async function createOrder(input: CreateOrderInput & { customerName?: str
   // 5. 주문 저장 (pending_payment)
   const day = businessDate();
   const orderId = db.transaction((tx) => {
-    const { next } = tx
-      .select({ next: sql<number>`coalesce(max(${schema.orders.orderNo}), 0) + 1` })
-      .from(schema.orders)
-      .where(eq(schema.orders.businessDate, day))
-      .get()!;
     const order = tx
       .insert(schema.orders)
       .values({
-        orderNo: next,
         businessDate: day,
         idempotencyKey: input.idempotencyKey,
         customerType: input.customer.type,
@@ -218,17 +212,10 @@ export async function createOrder(input: CreateOrderInput & { customerName?: str
     return order.id;
   });
 
-  // 6. MIRAEPASS 차감
-  const orderNo = db.select({ no: schema.orders.orderNo }).from(schema.orders).where(eq(schema.orders.id, orderId)).get()!.no;
+  // 6. MIRAEPASS 차감 → 성공하면 그날의 주문번호 부여
+  let balanceAfter: number;
   try {
-    const balanceAfter = await gateway.deduct(customer.id, priced.total, `교내 카페 주문 #${orderNo}`);
-    db.update(schema.orders)
-      .set({ status: "received", paymentStatus: "paid", balanceAfter, paidAt: new Date() })
-      .where(eq(schema.orders.id, orderId))
-      .run();
-    const dto = getOrder(orderId);
-    emit(["staff", "admin"], "order:new", dto);
-    return { orderId, orderNo, total: priced.total, balanceAfter };
+    balanceAfter = await gateway.deduct(customer.id, priced.total, `교내 카페 주문 (ID ${orderId})`);
   } catch (e) {
     const err = mapMiraepassError(e);
     db.update(schema.orders)
@@ -237,6 +224,20 @@ export async function createOrder(input: CreateOrderInput & { customerName?: str
       .run();
     throw err;
   }
+  const orderNo = db.transaction((tx) => {
+    const { next } = tx
+      .select({ next: sql<number>`coalesce(max(${schema.orders.orderNo}), 0) + 1` })
+      .from(schema.orders)
+      .where(eq(schema.orders.businessDate, day))
+      .get()!;
+    tx.update(schema.orders)
+      .set({ orderNo: next, status: "received", paymentStatus: "paid", balanceAfter, paidAt: new Date() })
+      .where(eq(schema.orders.id, orderId))
+      .run();
+    return next;
+  });
+  emit(["staff", "admin"], "order:new", getOrder(orderId));
+  return { orderId, orderNo, total: priced.total, balanceAfter };
 }
 
 export function mapMiraepassError(e: unknown): ApiError {
@@ -326,7 +327,7 @@ export async function refundOrder(id: number, actor: SessionUser): Promise<strin
     throw new ApiError("INVALID_TRANSITION", "환불할 수 없는 주문이에요", 409);
   }
   try {
-    await miraepass().grant(o.customerId, o.total, `교내 카페 주문 #${o.orderNo} 환불`);
+    await miraepass().grant(o.customerId, o.total, `교내 카페 주문 #${o.orderNo} (ID ${o.id}) 환불`);
     db.update(schema.orders).set({ paymentStatus: "refunded" }).where(eq(schema.orders.id, id)).run();
     logAction(id, actor, "refund");
     return undefined;

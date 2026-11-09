@@ -57,7 +57,7 @@ CREATE TABLE `order_items` (
 CREATE INDEX `order_items_order_idx` ON `order_items` (`order_id`);--> statement-breakpoint
 CREATE TABLE `orders` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`order_no` integer NOT NULL,
+	`order_no` integer,
 	`business_date` text NOT NULL,
 	`idempotency_key` text NOT NULL,
 	`customer_type` text NOT NULL,

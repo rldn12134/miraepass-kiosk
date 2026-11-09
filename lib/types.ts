@@ -65,6 +65,7 @@ export type OrderItemDTO = {
 
 export type OrderDTO = {
   id: number;
+  /** 결제 실패 주문은 0 */
   orderNo: number;
   businessDate: string;
   customerType: CustomerType;
