@@ -1,0 +1,17 @@
+{
+  "name": "@miraepass/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/gen/index.ts",
+    "./client": "./src/gen/client/index.ts"
+  },
+  "scripts": {
+    "sdk-gen": "openapi-ts"
+  },
+  "dependencies": {
+    "ofetch": "^1.5.1",
+    "zod": "^4.1.0"
+  }
+}
