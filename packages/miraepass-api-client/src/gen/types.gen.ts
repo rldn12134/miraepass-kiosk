@@ -1528,6 +1528,80 @@ export type LoginAuthLoginPostResponses = {
 
 export type LoginAuthLoginPostResponse = LoginAuthLoginPostResponses[keyof LoginAuthLoginPostResponses];
 
+export type KioskPasswordVerifyData = {
+    body: LoginForm;
+    path?: never;
+    query?: never;
+    url: '/auth/kiosk';
+};
+
+export type KioskPasswordVerifyErrors = {
+    /**
+     * 키오스크 비밀번호가 설정되지 않았습니다.
+     */
+    400: ErrorResponse;
+    /**
+     * 로그인이 필요합니다.
+     */
+    401: ErrorResponse;
+    /**
+     * 권한이 없습니다.
+     */
+    403: ErrorResponse;
+    /**
+     * 검사하려는 유저가 존재하지 않습니다.
+     */
+    404: ErrorResponse;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type KioskPasswordVerifyError = KioskPasswordVerifyErrors[keyof KioskPasswordVerifyErrors];
+
+export type KioskPasswordVerifyResponses = {
+    /**
+     * 검사 결과를 응답합니다.
+     */
+    200: ResponseModelBool;
+};
+
+export type KioskPasswordVerifyResponse = KioskPasswordVerifyResponses[keyof KioskPasswordVerifyResponses];
+
+export type ChangeKioskPasswordData = {
+    body: ChangePasswordForm;
+    path?: never;
+    query?: never;
+    url: '/auth/kiosk';
+};
+
+export type ChangeKioskPasswordErrors = {
+    /**
+     * 기존 비밀번호가 일치하지 않음
+     */
+    400: ErrorResponse;
+    /**
+     * 세션이 만료되었거나 유효하지 않음.
+     */
+    401: ErrorResponse;
+    /**
+     * 비밀번호의 형식이 잘못 되었음.
+     */
+    422: ErrorResponse;
+};
+
+export type ChangeKioskPasswordError = ChangeKioskPasswordErrors[keyof ChangeKioskPasswordErrors];
+
+export type ChangeKioskPasswordResponses = {
+    /**
+     * 비밀번호 변경 성공
+     */
+    204: void;
+};
+
+export type ChangeKioskPasswordResponse = ChangeKioskPasswordResponses[keyof ChangeKioskPasswordResponses];
+
 export type LogoutAuthLogoutPostData = {
     body?: never;
     path?: never;
@@ -1619,7 +1693,7 @@ export type ChangePasswordAuthPasswordPutErrors = {
      */
     401: ErrorResponse;
     /**
-     * 초기회 되지 않은 유저.
+     * 초기화 되지 않은 유저.
      */
     404: ErrorResponse;
     /**
