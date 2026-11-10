@@ -317,7 +317,7 @@ export function StaffBoard() {
 function Clock({ now }: { now: number }) {
   return (
     <span className="hidden text-sm font-semibold text-muted-foreground tabular-nums sm:inline">
-      {new Date(now).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+      {now ? new Date(now).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : ""}
     </span>
   );
 }
