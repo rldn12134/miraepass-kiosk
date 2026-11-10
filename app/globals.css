@@ -249,6 +249,22 @@
   font-family: Tossface, emoji;
 }
 
+/* 키오스크 대기화면: 정적 점무늬 (SVG 수천 개 대신 그라디언트 한 장) */
+.attract-dots {
+  background-image: radial-gradient(circle at 1px 1px, oklch(0.809 0.105 251.813 / 0.55) 1px, transparent 0);
+  background-size: 18px 18px;
+  mask-image: radial-gradient(60vmin circle at center, #000, transparent);
+}
+
+/* 합성(opacity)만 쓰는 안내 문구 깜빡임 */
+.attract-pulse {
+  animation: attract-pulse 2.4s ease-in-out infinite;
+}
+@keyframes attract-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 /* 키오스크: 터치 기기 최적화 */
 .kiosk-surface {
   user-select: none;
