@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { customerLabel, formatPoint } from "@/lib/format";
+import { customerHonorific, formatPoint } from "@/lib/format";
 import type { OrderDTO } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +35,7 @@ export function CancelDialog({
             <AlertDialogHeader>
               <AlertDialogTitle>#{order.orderNo} 주문을 취소할까요?</AlertDialogTitle>
               <AlertDialogDescription>
-                {customerLabel(order)}님께 {formatPoint(order.total)}가 MIRAEPASS 포인트로 자동 환불돼요.
+                {customerHonorific(order)}께 {formatPoint(order.total)}가 MIRAEPASS 포인트로 자동 환불돼요.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="flex flex-wrap gap-2">

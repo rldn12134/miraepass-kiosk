@@ -15,6 +15,12 @@ export function customerLabel(o: { customerType: CustomerType; customerName: str
   return o.customerGrade ? `${o.customerGrade}학년 ${o.customerName}` : o.customerName;
 }
 
+/** 존칭 포함: "3학년 홍길동님" / "홍길동 선생님" ('선생님' 뒤에 '님'을 또 붙이지 않는다) */
+export function customerHonorific(o: Parameters<typeof customerLabel>[0]) {
+  const label = customerLabel(o);
+  return o.customerType === "teacher" ? label : `${label}님`;
+}
+
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   pending_payment: "결제 중",
   failed: "결제 실패",
