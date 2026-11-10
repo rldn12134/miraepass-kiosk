@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AnimatedListItem } from "@/components/ui/animated-list";
@@ -71,7 +70,6 @@ export function callText(voice: VoiceSettings, p: OrderCallPayload) {
 
 export function StaffBoard() {
   const qc = useQueryClient();
-  const router = useRouter();
   const me = useMe();
   const status = useStoreStatus();
   const settings = usePublicSettings();
@@ -161,7 +159,7 @@ export function StaffBoard() {
   const logout = async () => {
     await api("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     qc.clear();
-    router.replace("/staff/login");
+    window.location.replace("/staff/login");
   };
 
   const isAdmin = me.data?.role === "admin";

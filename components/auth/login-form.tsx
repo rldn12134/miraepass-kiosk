@@ -2,17 +2,17 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { destinationAfterLogin } from "@/lib/auth-redirect";
 import { api, ClientApiError } from "@/lib/fetcher";
 import { qk } from "@/lib/query-keys";
 import type { SessionUser } from "@/lib/types";
 
 export function LoginForm({ target }: { target: "staff" | "admin" }) {
-  const router = useRouter();
   const params = useSearchParams();
   const qc = useQueryClient();
   const [id, setId] = useState("");
@@ -22,12 +22,8 @@ export function LoginForm({ target }: { target: "staff" | "admin" }) {
     mutationFn: () => api<SessionUser>("/api/auth/login", { method: "POST", body: { id: Number(id), password } }),
     onSuccess: (user) => {
       qc.setQueryData(qk.me, user);
-      if (target === "admin" && user.role !== "admin") {
-        router.replace("/staff");
-        return;
-      }
-      router.replace(target === "admin" ? "/admin" : "/staff");
-      router.refresh();
+      // 새 세션 쿠키가 proxy까지 확실히 전달되도록 클라이언트 라우터 캐시를 거치지 않고 이동
+      window.location.replace(destinationAfterLogin(user.role, target, params.get("next")));
     },
   });
 
@@ -82,9 +78,9 @@ export function LoginForm({ target }: { target: "staff" | "admin" }) {
           </div>
         </div>
         {error && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{error}</p>}
-        <Button type="submit" className="h-12 w-full text-base" disabled={!id || !password || login.isPending}>
-          {login.isPending && <Loader2 className="animate-spin" />}
-          로그인
+        <Button type="submit" className="h-12 w-full text-base" disabled={!id || !password || login.isPending || login.isSuccess}>
+          {(login.isPending || login.isSuccess) && <Loader2 className="animate-spin" />}
+          {login.isSuccess ? "이동 중…" : "로그인"}
         </Button>
         <p className="text-center text-xs text-muted-foreground">MIRAEPASS 비밀번호는 카페 서버에 저장되지 않아요</p>
       </form>

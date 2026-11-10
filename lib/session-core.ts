@@ -6,7 +6,12 @@ export type SessionData = { user?: SessionUser };
 
 export const SESSION_COOKIE = "mp_cafe_session";
 
-export function sessionOptions(): SessionOptions {
+/**
+ * secure 쿠키는 HTTPS로 접속했을 때만 붙인다.
+ * 태블릿이 http://192.168.x.x 로 접속하는 교내 환경에서 Secure 쿠키는 저장되지 않아
+ * 로그인해도 계속 로그인 화면으로 돌아오는 문제가 있었다.
+ */
+export function sessionOptions(opts: { secure?: boolean } = {}): SessionOptions {
   const password = process.env.SESSION_SECRET;
   if (!password || password.length < 32) {
     throw new Error("SESSION_SECRET 환경변수는 32자 이상이어야 해요");
@@ -18,7 +23,7 @@ export function sessionOptions(): SessionOptions {
     cookieOptions: {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production" && process.env.INSECURE_COOKIE !== "1",
+      secure: opts.secure ?? false,
       path: "/",
     },
   };
