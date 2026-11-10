@@ -15,6 +15,8 @@ import {
   idempotencyKeyAtom,
   kioskErrorAtom,
   orderResultAtom,
+  pinAtom,
+  pinErrorAtom,
   stepAtom,
 } from "@/store/kiosk";
 
@@ -29,6 +31,9 @@ export function PayingScreen() {
   const setStep = useSetAtom(stepAtom);
   const setResult = useSetAtom(orderResultAtom);
   const setError = useSetAtom(kioskErrorAtom);
+  const pin = useAtomValue(pinAtom);
+  const setPin = useSetAtom(pinAtom);
+  const setPinError = useSetAtom(pinErrorAtom);
   const started = useRef(false);
 
   const pay = useMutation({
@@ -42,21 +47,31 @@ export function PayingScreen() {
           signal: ctrl.signal,
           body: {
             idempotencyKey: key,
-            customer: { type: customer!.type, id: customer!.id, name: customer!.searchName },
+            customerId: customer!.id,
+            pin,
             items: cart.map((l) => ({ menuItemId: l.menuItemId, quantity: l.quantity, optionItemIds: l.optionItemIds })),
             expectedTotal: total,
           },
         });
       } finally {
         clearTimeout(timer);
+        // 비밀번호는 요청 한 번에만 쓰고 바로 지운다
+        setPin("");
       }
     },
     onSuccess: (result) => {
+      setPinError(null);
       setResult(result);
       setStep("done");
     },
     onError: (e) => {
       const code = e instanceof ClientApiError ? e.code : "INTERNAL";
+      // 비밀번호가 틀리면 비밀번호 화면으로 돌아가 다시 입력 (주문은 만들어지지 않았다)
+      if (code === "INVALID_PIN") {
+        setPinError({ message: (e as ClientApiError).message, at: Date.now() });
+        setStep("pin");
+        return;
+      }
       setError({
         code,
         message: e instanceof ClientApiError ? e.message : "결제 요청에 실패했어요",
@@ -69,8 +84,12 @@ export function PayingScreen() {
   useEffect(() => {
     if (started.current || !customer) return;
     started.current = true;
+    if (pin.length !== 6) {
+      setStep("pin");
+      return;
+    }
     pay.mutate();
-  }, [customer, pay]);
+  }, [customer, pay, pin, setStep]);
 
   return (
     <div className="relative flex h-dvh flex-col items-center justify-center overflow-hidden px-6 text-center">

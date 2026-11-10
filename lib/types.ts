@@ -105,7 +105,10 @@ export type CartLineInput = {
 
 export type CreateOrderInput = {
   idempotencyKey: string;
-  customer: { type: CustomerType; id: number };
+  /** MIRAEPASS ID (학생: 학번 4자리, 교사: 고유 4자리) */
+  customerId: number;
+  /** 키오스크 결제 비밀번호 6자리. 서버에서 MIRAEPASS로 검증 후 바로 버린다 */
+  pin: string;
   items: CartLineInput[];
   expectedTotal: number;
 };
@@ -171,6 +174,9 @@ export type ApiErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"
   | "INVALID_CREDENTIALS"
+  | "INVALID_PIN"
+  | "PIN_NOT_SET"
+  | "PIN_LOCKED"
   | "NOT_FOUND"
   | "VALIDATION"
   | "RATE_LIMITED"

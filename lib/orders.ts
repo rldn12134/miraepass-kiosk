@@ -4,6 +4,7 @@ import { db, schema } from "./db";
 import type { Order, OrderItem } from "./db/schema";
 import { getMenuMap } from "./menu";
 import { miraepass, MiraepassError } from "./miraepass";
+import { lockedFor, recordFailure, recordSuccess } from "./pin-guard";
 import { PricingError, priceCart } from "./pricing";
 import { emit } from "./realtime";
 import { getStoreStatus } from "./settings";
@@ -142,7 +143,11 @@ const FAIL_MESSAGES: Partial<Record<ApiError["code"], string>> = {
   PAYMENT_UNAVAILABLE: "MIRAEPASS 결제 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요",
 };
 
-export async function createOrder(input: CreateOrderInput & { customerName?: string }): Promise<CreateOrderResult> {
+/**
+ * 키오스크 주문 처리: 영업 확인 → 가격 재계산 → 고객 조회 → 결제 비밀번호 검증 → 포인트 차감 → 주문 확정.
+ * 비밀번호가 틀리면 주문 행을 만들지 않으므로 같은 멱등키로 다시 시도할 수 있다.
+ */
+export async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
   // 1. 영업 상태
   const store = getStoreStatus();
   if (!store.open) throw new ApiError("STORE_CLOSED", store.message, 409);
@@ -171,17 +176,21 @@ export async function createOrder(input: CreateOrderInput & { customerName?: str
     });
   }
 
-  // 4. 고객 재확인 (이름/학년 스냅샷)
+  // 4. 고객 조회 (학생/교사 구분, 이름·학년 스냅샷)
   const gateway = miraepass();
   let customer;
   try {
-    customer = await gateway.resolveCustomer(input.customer.type, input.customer.id, input.customerName);
+    customer = await gateway.findUser(input.customerId);
   } catch (e) {
     throw mapMiraepassError(e);
   }
-  if (!customer) throw new ApiError("USER_NOT_FOUND", FAIL_MESSAGES.USER_NOT_FOUND!, 404);
+  if (!customer || customer.type === "service") throw new ApiError("USER_NOT_FOUND", FAIL_MESSAGES.USER_NOT_FOUND!, 404);
+  const customerType = customer.type;
 
-  // 5. 주문 저장 (pending_payment)
+  // 5. 키오스크 결제 비밀번호 검증 (연속 실패 시 잠금)
+  await checkPin(customer.id, input.pin);
+
+  // 6. 주문 저장 (pending_payment)
   const day = businessDate();
   const orderId = db.transaction((tx) => {
     const order = tx
@@ -189,7 +198,7 @@ export async function createOrder(input: CreateOrderInput & { customerName?: str
       .values({
         businessDate: day,
         idempotencyKey: input.idempotencyKey,
-        customerType: input.customer.type,
+        customerType,
         customerId: customer.id,
         customerName: customer.name,
         customerGrade: customer.grade,
@@ -212,8 +221,8 @@ export async function createOrder(input: CreateOrderInput & { customerName?: str
     return order.id;
   });
 
-  // 6. MIRAEPASS 차감 → 성공하면 그날의 주문번호 부여
-  let balanceAfter: number;
+  // 7. MIRAEPASS 차감 → 성공하면 그날의 주문번호 부여
+  let balanceAfter: number | null;
   try {
     balanceAfter = await gateway.deduct(customer.id, priced.total, `교내 카페 주문 (ID ${orderId})`);
   } catch (e) {
@@ -240,6 +249,26 @@ export async function createOrder(input: CreateOrderInput & { customerName?: str
   return { orderId, orderNo, total: priced.total, balanceAfter };
 }
 
+async function checkPin(customerId: number, pin: string) {
+  const locked = lockedFor(customerId);
+  if (locked > 0) {
+    const minutes = Math.ceil(locked / 60_000);
+    throw new ApiError("PIN_LOCKED", `비밀번호를 여러 번 틀려서 ${minutes}분 동안 결제할 수 없어요`, 429, { retryAfterSec: Math.ceil(locked / 1000) });
+  }
+  let ok: boolean;
+  try {
+    ok = await miraepass().verifyKioskPin(customerId, pin);
+  } catch (e) {
+    throw mapMiraepassError(e);
+  }
+  if (ok) return recordSuccess(customerId);
+  const remaining = recordFailure(customerId);
+  if (remaining === 0) {
+    throw new ApiError("PIN_LOCKED", "비밀번호를 여러 번 틀려서 10분 동안 결제할 수 없어요", 429, { retryAfterSec: 600 });
+  }
+  throw new ApiError("INVALID_PIN", `비밀번호가 맞지 않아요 (${remaining}번 더 시도할 수 있어요)`, 401, { remainingAttempts: remaining });
+}
+
 export function mapMiraepassError(e: unknown): ApiError {
   if (e instanceof ApiError) return e;
   if (e instanceof MiraepassError) {
@@ -252,6 +281,8 @@ export function mapMiraepassError(e: unknown): ApiError {
         return new ApiError("REFUND_FAILED", "MIRAEPASS 지급 한도를 초과했어요", 429);
       case "INVALID_CREDENTIALS":
         return new ApiError("INVALID_CREDENTIALS", "ID 또는 비밀번호가 일치하지 않아요", 401);
+      case "PIN_NOT_SET":
+        return new ApiError("PIN_NOT_SET", "키오스크 비밀번호가 설정되지 않았어요. MIRAEPASS에서 먼저 설정해 주세요", 409);
       default:
         console.error("[miraepass]", e.code, e.status, e.message);
         return new ApiError("PAYMENT_UNAVAILABLE", FAIL_MESSAGES.PAYMENT_UNAVAILABLE!, 503);

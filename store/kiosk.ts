@@ -20,7 +20,7 @@ export type CartLine = {
   unitPrice: number;
 };
 
-export type SelectedCustomer = CustomerCandidate & { searchName?: string };
+export type SelectedCustomer = CustomerCandidate;
 
 export type KioskError = { code: string; message: string; retryable: boolean };
 
@@ -50,6 +50,10 @@ export const customerAtom = atom<SelectedCustomer | null>(null);
 export const idempotencyKeyAtom = atom<string>("");
 export const orderResultAtom = atom<CreateOrderResult | null>(null);
 export const kioskErrorAtom = atom<KioskError | null>(null);
+/** 입력한 결제 비밀번호: 결제 요청에만 쓰고 끝나면 바로 비운다 */
+export const pinAtom = atom<string>("");
+/** 비밀번호가 틀렸을 때 비밀번호 화면에 보여줄 안내 */
+export const pinErrorAtom = atom<{ message: string; at: number } | null>(null);
 
 export const cartCountAtom = atom((get) => get(cartAtom).reduce((s, l) => s + l.quantity, 0));
 export const cartTotalAtom = atom((get) => get(cartAtom).reduce((s, l) => s + l.unitPrice * l.quantity, 0));
@@ -124,6 +128,8 @@ export const resetKioskAtom = atom(null, (_get, set, step: KioskStep = "attract"
   set(customerAtom, null);
   set(orderResultAtom, null);
   set(kioskErrorAtom, null);
+  set(pinAtom, "");
+  set(pinErrorAtom, null);
   set(idempotencyKeyAtom, "");
   set(activeCategoryAtom, null);
   set(stepAtom, step);

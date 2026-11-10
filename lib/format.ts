@@ -37,3 +37,10 @@ export const PAYMENT_LABEL: Record<PaymentStatus, string> = {
 export function fillTemplate(template: string, vars: Record<string, string | number | null | undefined>) {
   return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
 }
+
+/** 키오스크에서 고객을 부르는 이름: "3학년 4반 최*딩" / "홍*동 선생님" */
+export function candidateLabel(c: { type: CustomerType; displayName: string; grade: number | null; classNo: number | null }) {
+  if (c.type === "teacher") return `${c.displayName} 선생님`;
+  const parts = [c.grade ? `${c.grade}학년` : null, c.classNo ? `${c.classNo}반` : null, c.displayName];
+  return parts.filter(Boolean).join(" ");
+}

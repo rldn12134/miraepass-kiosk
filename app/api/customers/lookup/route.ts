@@ -1,40 +1,36 @@
 import { z } from "zod";
 import { ApiError, handler, ok, parseBody, rateLimit, requireKiosk } from "@/lib/api";
-import { miraepass, type MPUser } from "@/lib/miraepass";
-import { mapMiraepassError } from "@/lib/orders";
 import { maskName } from "@/lib/format";
+import { miraepass } from "@/lib/miraepass";
+import { mapMiraepassError } from "@/lib/orders";
 import type { CustomerCandidate } from "@/lib/types";
 
-const Body = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("student"), studentId: z.coerce.number().int().min(1000).max(99999), amount: z.number().int().min(0) }),
-  z.object({ type: z.literal("teacher"), name: z.string().trim().min(1).max(20), amount: z.number().int().min(0) }),
-]);
-
-const toCandidate = (u: MPUser, amount: number, mask: boolean): CustomerCandidate => ({
-  id: u.id,
-  type: u.type === "teacher" ? "teacher" : "student",
-  displayName: mask ? maskName(u.name) : u.name,
-  grade: u.grade,
-  classNo: u.classNo,
-  sufficient: u.point === null ? null : u.point >= amount,
+/** MIRAEPASS ID 4자리: 학생은 학번(3학년 4반 12번 → 3412), 교사는 고유 번호 */
+const Body = z.object({
+  id: z.coerce.number().int().min(1000).max(9999),
+  amount: z.number().int().min(0),
 });
 
 export const POST = handler(async (req) => {
   const token = requireKiosk(req);
   rateLimit(`lookup:${token}`, 30, 60_000);
-  const body = await parseBody(req, Body);
-  const gateway = miraepass();
+  const { id, amount } = await parseBody(req, Body);
+  let user;
   try {
-    if (body.type === "student") {
-      const user = await gateway.findStudent(body.studentId);
-      if (!user) throw new ApiError("USER_NOT_FOUND", "해당 학번의 학생을 찾을 수 없어요", 404);
-      return ok([toCandidate(user, body.amount, true)]);
-    }
-    const list = await gateway.searchTeachers(body.name);
-    if (list.length === 0) throw new ApiError("USER_NOT_FOUND", "해당 이름의 선생님을 찾을 수 없어요", 404);
-    // 교사는 동명이인 구분을 위해 이름 전체를 보여준다 (검색어를 직접 입력한 본인)
-    return ok(list.slice(0, 10).map((u) => toCandidate(u, body.amount, false)));
+    user = await miraepass().findUser(id);
   } catch (e) {
     throw mapMiraepassError(e);
   }
+  if (!user || user.type === "service") throw new ApiError("USER_NOT_FOUND", "해당 ID의 사용자를 찾을 수 없어요", 404);
+
+  const candidate: CustomerCandidate = {
+    id: user.id,
+    type: user.type,
+    // 공용 기기이므로 이름은 가운데를 가리고, 잔액은 숫자 대신 충분/부족만 알려준다
+    displayName: maskName(user.name),
+    grade: user.grade,
+    classNo: user.classNo,
+    sufficient: user.point === null ? null : user.point >= amount,
+  };
+  return ok(candidate);
 });

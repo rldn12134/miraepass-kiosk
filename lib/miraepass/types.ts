@@ -13,6 +13,7 @@ export type MPErrorCode =
   | "INSUFFICIENT_POINT"
   | "USER_NOT_FOUND"
   | "INVALID_CREDENTIALS"
+  | "PIN_NOT_SET"
   | "UNAUTHORIZED"
   | "FORBIDDEN"
   | "LIMIT_EXCEEDED"
@@ -30,14 +31,12 @@ export class MiraepassError extends Error {
 }
 
 export interface MiraepassGateway {
-  /** 학번(= MIRAEPASS user id)으로 학생 조회 */
-  findStudent(studentId: number): Promise<MPUser | null>;
-  /** 이름(부분 일치)으로 교사 후보 검색 */
-  searchTeachers(name: string): Promise<MPUser[]>;
-  /** 결제 직전 고객 재확인. 교사는 id 검색이 불가능하므로 이름으로 검색 후 id 매칭 */
-  resolveCustomer(type: CustomerType, id: number, name?: string): Promise<MPUser | null>;
-  /** 포인트 차감 → 남은 잔액 */
-  deduct(userId: number, amount: number, memo: string): Promise<number>;
+  /** MIRAEPASS ID로 학생·교사 조회. 학생은 학번 4자리(3학년 4반 12번 → 3412), 교사는 고유 4자리 */
+  findUser(id: number): Promise<MPUser | null>;
+  /** 키오스크 결제 비밀번호(6자리 숫자) 확인. 설정하지 않았으면 PIN_NOT_SET */
+  verifyKioskPin(id: number, pin: string): Promise<boolean>;
+  /** 포인트 차감 → 남은 잔액 (서버가 잔액을 주지 않으면 null) */
+  deduct(userId: number, amount: number, memo: string): Promise<number | null>;
   /** 포인트 지급(환불) */
   grant(userId: number, amount: number, memo: string): Promise<void>;
   /** 관리자/직원 로그인 확인. 세션은 즉시 폐기 */

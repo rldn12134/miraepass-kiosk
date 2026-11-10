@@ -1,6 +1,5 @@
 import { MiraepassApi, PointHistoryType, UserType, type User } from "@miraepass/api-client";
 import { createClient } from "@miraepass/api-client/client";
-import type { CustomerType } from "../types";
 import { MiraepassError, type MiraepassGateway, type MPUser } from "./types";
 
 type SdkResult = { data?: unknown; error?: unknown; response?: Response };
@@ -90,12 +89,15 @@ class ServiceSession {
     return this.cookie;
   }
 
+  /** 401이면 한 번 재로그인 후 재시도한 원본 결과 */
+  async runRaw(fn: (api: MiraepassApi) => Promise<SdkResult>): Promise<SdkResult> {
+    const res = await call(async () => fn(sdk(await this.get())));
+    if (res.response?.status !== 401) return res;
+    return call(async () => fn(sdk(await this.get(true))));
+  }
+
   async run<T>(fn: (api: MiraepassApi) => Promise<SdkResult>, map?: Parameters<typeof unwrap>[1]): Promise<T> {
-    let res = await call(async () => fn(sdk(await this.get())));
-    if (res.response?.status === 401) {
-      res = await call(async () => fn(sdk(await this.get(true))));
-    }
-    return unwrap<T>(res, map);
+    return unwrap<T>(await this.runRaw(fn), map);
   }
 }
 
@@ -105,36 +107,44 @@ declare global {
 const service = (globalThis.__mpService ??= new ServiceSession());
 
 export const realGateway: MiraepassGateway = {
-  async findStudent(studentId) {
+  async findUser(id) {
+    // 4자리 이상 숫자 검색어는 ID(학번)와 정확히 일치하는 사용자만 돌려준다
     const list = await service.run<User[]>((api) =>
-      api.searchSearchGet({ query: { q: String(studentId), t: [UserType.STUDENT] } }),
+      api.searchSearchGet({ query: { q: String(id), t: [UserType.STUDENT, UserType.TEACHER] } }),
     );
-    const user = list?.find((u) => u.id === studentId && u.type === UserType.STUDENT);
+    const user = list?.find((u) => u.id === id && (u.type === UserType.STUDENT || u.type === UserType.TEACHER));
     return user ? toMPUser(user) : null;
   },
 
-  async searchTeachers(name) {
-    const q = name.trim();
-    if (!q) return [];
-    const list = await service.run<User[]>((api) => api.searchSearchGet({ query: { q, t: [UserType.TEACHER] } }));
-    return (list ?? []).filter((u) => u.type === UserType.TEACHER).map(toMPUser);
-  },
-
-  async resolveCustomer(type: CustomerType, id: number, name?: string) {
-    if (type === "student") return this.findStudent(id);
-    if (!name) return null;
-    const list = await this.searchTeachers(name);
-    return list.find((u) => u.id === id) ?? null;
+  async verifyKioskPin(id, pin) {
+    const res = await service.runRaw((api) =>
+      api.kioskPasswordVerify({
+        body: { id, password: pin },
+        // 서버는 일치 여부를 응답 봉투의 success에 담는다. SDK의 응답 스키마 검사(data: boolean)를 거치지 않고 원본을 읽는다
+        responseTransformer: async (data: unknown) => data,
+      }),
+    );
+    const status = res.response?.status;
+    if (status === 200) {
+      const body = res.data as { success?: unknown; data?: unknown } | undefined;
+      return body?.success === true && body.data !== false;
+    }
+    if (status === 400) throw new MiraepassError("PIN_NOT_SET", "키오스크 비밀번호가 설정되지 않았어요", 400);
+    if (status === 404) throw new MiraepassError("USER_NOT_FOUND", "사용자를 찾을 수 없어요", 404);
+    if (status === 403) throw new MiraepassError("FORBIDDEN", "서비스 계정으로만 비밀번호를 검사할 수 있어요", 403);
+    throw new MiraepassError("UNAVAILABLE", messageOf(res.error), status);
   },
 
   async deduct(userId, amount, memo) {
-    return service.run<number>(
+    // 200(남은 잔액) 또는 204(본문 없음) 응답. 204면 잔액을 알 수 없으므로 null
+    const balance = await service.run<number | undefined>(
       (api) =>
         api.deductPointsPointDeductPost({
           body: { target_user_id: userId, amount, memo, change_type: PointHistoryType.CAFE },
         }),
       { 400: "INSUFFICIENT_POINT", 404: "USER_NOT_FOUND" },
     );
+    return typeof balance === "number" ? balance : null;
   },
 
   async grant(userId, amount, memo) {
