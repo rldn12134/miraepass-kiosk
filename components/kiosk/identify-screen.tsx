@@ -8,7 +8,7 @@ import { api, ClientApiError } from "@/lib/fetcher";
 import { candidateHonorific } from "@/lib/format";
 import type { CustomerCandidate } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { cartTotalAtom, customerAtom, idempotencyKeyAtom, newIdempotencyKey, pinAtom, pinErrorAtom, stepAtom } from "@/store/kiosk";
+import { cartTotalAtom, customerAtom, idempotencyKeyAtom, newIdempotencyKey, stepAtom } from "@/store/kiosk";
 import { NumericKeypad } from "./numeric-keypad";
 import { StepHeader } from "./step-header";
 
@@ -19,8 +19,6 @@ export function IdentifyScreen({ onHome }: { onHome: () => void }) {
   const setStep = useSetAtom(stepAtom);
   const setCustomer = useSetAtom(customerAtom);
   const setKey = useSetAtom(idempotencyKeyAtom);
-  const setPin = useSetAtom(pinAtom);
-  const setPinError = useSetAtom(pinErrorAtom);
   const total = useAtomValue(cartTotalAtom);
   const [id, setId] = useState("");
   const [insufficient, setInsufficient] = useState<CustomerCandidate | null>(null);
@@ -33,8 +31,6 @@ export function IdentifyScreen({ onHome }: { onHome: () => void }) {
       if (c.sufficient === false) return setInsufficient(c);
       setCustomer(c);
       setKey(newIdempotencyKey());
-      setPin("");
-      setPinError(null);
       setStep("pin");
     },
   });
