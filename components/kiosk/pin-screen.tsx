@@ -4,7 +4,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, LockKeyhole } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
-import { candidateLabel, formatPoint } from "@/lib/format";
+import { candidateHonorific, formatPoint } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { cartTotalAtom, customerAtom, pinAtom, pinErrorAtom, stepAtom } from "@/store/kiosk";
 import { NumericKeypad } from "./numeric-keypad";
@@ -54,7 +54,7 @@ export function PinScreen({ shuffle, onHome }: { shuffle: boolean; onHome: () =>
             <LockKeyhole className="size-10 text-primary" />
           </span>
           <div>
-            <p className="text-2xl font-bold">{candidateLabel(customer)}님</p>
+            <p className="text-2xl font-bold">{candidateHonorific(customer)}</p>
             <p className="mt-1 text-lg text-muted-foreground">MIRAEPASS 키오스크 비밀번호 6자리를 입력해 주세요</p>
           </div>
           <motion.div

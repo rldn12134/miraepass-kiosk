@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { customerLabel, fillTemplate, maskName } from "@/lib/format";
+import { candidateHonorific, customerLabel, fillTemplate, maskName } from "@/lib/format";
 
 describe("format", () => {
   it("이름 가운데를 마스킹한다", () => {
@@ -17,5 +17,9 @@ describe("format", () => {
   it("고객 표시 이름", () => {
     expect(customerLabel({ customerType: "teacher", customerName: "김선생", customerGrade: null })).toBe("김선생 선생님");
     expect(customerLabel({ customerType: "student", customerName: "최코딩", customerGrade: 3 })).toBe("3학년 최코딩");
+  });
+  it("키오스크 호칭에 '님'을 한 번만 붙인다", () => {
+    expect(candidateHonorific({ type: "student", displayName: "임*재", grade: 3, classNo: 4 })).toBe("3학년 4반 임*재님");
+    expect(candidateHonorific({ type: "teacher", displayName: "교*", grade: null, classNo: null })).toBe("교* 선생님");
   });
 });

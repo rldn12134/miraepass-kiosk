@@ -281,6 +281,10 @@ export function mapMiraepassError(e: unknown): ApiError {
         return new ApiError("REFUND_FAILED", "MIRAEPASS 지급 한도를 초과했어요", 429);
       case "INVALID_CREDENTIALS":
         return new ApiError("INVALID_CREDENTIALS", "ID 또는 비밀번호가 일치하지 않아요", 401);
+      case "FORBIDDEN":
+        // 키오스크 서비스 계정 권한(DEDUCT_POINT/GRANT_POINT) 설정 문제: 고객이 아니라 운영자가 고쳐야 한다
+        console.error("[miraepass] 서비스 계정 권한 부족", e.status, e.message);
+        return new ApiError("PAYMENT_UNAVAILABLE", "키오스크 결제 계정의 권한 설정이 필요해요. 카페 관리자에게 알려 주세요", 503);
       case "PIN_NOT_SET":
         return new ApiError("PIN_NOT_SET", "키오스크 비밀번호가 설정되지 않았어요. MIRAEPASS에서 먼저 설정해 주세요", 409);
       default:

@@ -5,7 +5,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, IdCard, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { api, ClientApiError } from "@/lib/fetcher";
-import { candidateLabel } from "@/lib/format";
+import { candidateHonorific } from "@/lib/format";
 import type { CustomerCandidate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { cartTotalAtom, customerAtom, idempotencyKeyAtom, newIdempotencyKey, pinAtom, pinErrorAtom, stepAtom } from "@/store/kiosk";
@@ -51,7 +51,7 @@ export function IdentifyScreen({ onHome }: { onHome: () => void }) {
   };
 
   const error = insufficient
-    ? `${candidateLabel(insufficient)}님, 포인트가 부족해요`
+    ? `${candidateHonorific(insufficient)}, 포인트가 부족해요`
     : lookup.error instanceof ClientApiError
       ? lookup.error.message
       : lookup.error

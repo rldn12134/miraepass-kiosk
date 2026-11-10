@@ -44,3 +44,9 @@ export function candidateLabel(c: { type: CustomerType; displayName: string; gra
   const parts = [c.grade ? `${c.grade}학년` : null, c.classNo ? `${c.classNo}반` : null, c.displayName];
   return parts.filter(Boolean).join(" ");
 }
+
+/** 존칭 포함 호칭: "3학년 4반 최*딩님" / "홍*동 선생님" ('선생님' 뒤에 '님'을 또 붙이지 않는다) */
+export function candidateHonorific(c: Parameters<typeof candidateLabel>[0]) {
+  const label = candidateLabel(c);
+  return c.type === "teacher" ? label : `${label}님`;
+}
